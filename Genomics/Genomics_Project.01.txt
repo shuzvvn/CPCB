@@ -1,0 +1,349 @@
+Genomics_Project.01.txt
+
+Shu-Ting Cho <shutingc@andrew.cmu.edu>
+
+
+<date>2022/04/18</date>
+
+# download the fasta files
+cd /mnt/g/My Drive/0_Genomics/Genomics_Project
+
+vim accession.txt
+GCF_002591665.3
+GCF_002943835.1
+GCF_003666425.1
+GCF_003666445.1
+GCF_003666465.1
+GCF_003667905.1
+GCF_003667925.1
+GCF_005221325.1
+GCF_005221345.1
+GCF_005221385.1
+GCF_005221405.1
+GCF_005221425.1
+GCF_014489975.1
+GCF_016403145.1
+GCF_017726655.1
+
+
+ncbi-genome-download --formats fasta -A accession.txt bacteria
+
+mkdir /mnt/g/My\ Drive/0_Genomics/Genomics_Project/fasta.gz
+
+mv /mnt/g/My\ Drive/0_Genomics/Genomics_Project/refseq/bacteria/*/*.fna.gz /mnt/g/My\ Drive/0_Genomics/Genomics_Project/fasta.gz/
+
+
+
+<date>2022/04/20</date>
+
+# try de novo assembly tools to generate repeat elements
+cd /Volumes/GoogleDrive/My Drive/0_Genomics/Genomics_Project/Swapnil_Samplefast
+grep -c '>' *.fasta
+original.fasta:191202
+shuffled.fasta:193048
+test01.fasta:50
+
+
+mkdir /Users/stc/genomics_project/kmers/
+cp /Volumes/GoogleDrive/My\ Drive/0_Genomics/Genomics_Project/Swapnil_Samplefast/test01.fasta /Users/stc/genomics_project/kmers/
+
+
+### install SPAdes ###
+# https://cab.spbu.ru/files/release3.15.4/manual.html#sec2.2
+cd /usr/local
+sudo curl http://cab.spbu.ru/files/release3.15.4/SPAdes-3.15.4-Darwin.tar.gz -o SPAdes-3.15.4-Darwin.tar.gz
+sudo tar -zxf SPAdes-3.15.4-Darwin.tar.gz
+sudo ln -s /usr/local/SPAdes-3.15.4-Darwin/bin/spades.py /usr/local/bin/spades.py
+
+# run SPAdes
+mkdir /Users/stc/genomics_project/SPAdes
+cd /Users/stc/genomics_project/SPAdes
+
+spades.py --only-assembler --careful -s /Users/stc/genomics_project/kmers/test01.fasta -o /Users/stc/genomics_project/SPAdes/
+# fail, no result
+
+
+
+### install Velvet ###
+conda install -c bioconda velvet
+
+# run velvet
+mkdir /Users/stc/genomics_project/velvet
+velveth /Users/stc/genomics_project/velvet 3 -short -fasta /Users/stc/genomics_project/kmers/test01.fasta
+velvetg /Users/stc/genomics_project/velvet
+# fail, no result
+
+
+
+# run MSA
+R
+library(DECIPHER)
+seq <- readDNAStringSet('/Users/stc/genomics_project/kmers/test01.fasta')
+alignedDNA <- AlignSeqs(seq, processors=NULL, verbose=FALSE, gapOpening=-6)
+BrowseSeqs(alignedDNA)
+
+
+
+# write script to 
+# Read input fasta.gz
+# calculate frequency of each kmer with sliding window and store in multidimensional matrix
+# correct abundance with background (expected)
+# output fasta files, each contain kmers that have the same corrected abundance
+# plot the rank abundance curve
+
+# test run
+cd ~/genomics_project
+./get_kmer_fasta.1.py --in_file=/Users/stc/genomics_project/fasta.gz/GCF_003666465.1_ASM366646v1_genomic.fna.gz --out_dir=/Users/stc/genomics_project/fasta.gz/15955/ --k=12 --n_permute=3
+
+
+
+### AWS EC ###
+
+# first launch a free instance type t2.micro
+# us-east-2b
+# key: cpcb2021.cer
+# Ohio
+
+# big memory instance: x2iedn.4xlarge (512 GB)
+
+ssh -i cpcb2021.cer ubuntu@3.139.74.140
+
+df -h
+# 28G space 
+
+# install anaconda for linux
+https://docs.anaconda.com/anaconda/install/linux/
+
+# install biopython
+conda install -c conda-forge biopython
+
+
+
+<date>2022/04/21</date>
+
+# test run
+time ./get_kmer_fasta.2.py --in_file=/Users/stc/genomics_project/fasta.gz/GCF_003666465.1_ASM366646v1_genomic.fna.gz --out_dir=/Users/stc/genomics_project/15955/ --k=12 --n_permute=30
+
+
+# test runtime and memory usage on my MacBook Pro
+strain  k   n   time    peak_memory
+15955   11  1   1:40    1GB
+15955   12  1   2:13    4GB
+15955   13  1   3:35    17GB
+15955	12	10	8:12	4GB
+
+
+# k=20 will require 4^9GB memory
+
+# create a list for running all genomes with loop
+vim strain.list
+GCF_002591665.3_ASM259166v3_genomic.fna.gz	186
+GCF_002943835.1_ASM294383v1_genomic.fna.gz	1D1609
+GCF_003666425.1_ASM366642v1_genomic.fna.gz	1D1108
+GCF_003666445.1_ASM366644v1_genomic.fna.gz	1D1460
+GCF_003666465.1_ASM366646v1_genomic.fna.gz	15955
+GCF_003667905.1_ASM366790v1_genomic.fna.gz	12D1
+GCF_003667925.1_ASM366792v1_genomic.fna.gz	A6
+GCF_005221325.1_ASM522132v1_genomic.fna.gz	CFBP5499
+GCF_005221345.1_ASM522134v1_genomic.fna.gz	CFBP5877
+GCF_005221385.1_ASM522138v1_genomic.fna.gz	CFBP6623
+GCF_005221405.1_ASM522140v1_genomic.fna.gz	CFBP7129
+GCF_005221425.1_ASM522142v1_genomic.fna.gz	CFBP6624
+GCF_014489975.1_ASM1448997v1_genomic.fna.gz	BIMB1315G
+GCF_016403145.1_ASM1640314v1_genomic.fna.gz	FDAARGOS_1048
+GCF_017726655.1_ASM1772665v1_genomic.fna.gz	6N2
+
+# run overnight
+while IFS=$'\t' read -r -a line
+do
+echo "${line[1]}"
+time ./get_kmer_fasta.2.py --in_file=/Users/stc/genomics_project/fasta.gz/${line[0]} --out_dir=/Users/stc/genomics_project/${line[1]}/ --k=12 --n_permute=100 > /Users/stc/genomics_project/${line[1]}.log
+done < strain.list > get_kmer_fasta.log
+
+# start at 5:39
+
+# #SBATCH -p big_memory
+
+# test
+time ./get_kmer_fasta.3.py --in_file=/Users/stc/genomics_project/fasta.gz/GCF_003666465.1_ASM366646v1_genomic.fna.gz --out_dir=/Users/stc/genomics_project/15955/ --k=12 --n_permute=1
+
+strain	k	n	c	time	peak_memory
+15955	12	1	30	3:05	4GB
+15955	13	1	30	5:08    17GB
+15955	12	10	30	11:45	4GB
+
+
+
+scp -pr ~/genomics_project/fasta.gz/ shc167@cluster.csb.pitt.edu:~/genomics_project/
+scp -pr ~/genomics_project/get_kmer_fasta.3.py shc167@cluster.csb.pitt.edu:~/genomics_project/
+scp -pr ~/genomics_project/strain.list shc167@cluster.csb.pitt.edu:~/genomics_project/
+
+
+
+mkdir -p ~/genomics_project/get_kmer_fasta/run1/
+
+
+cd ~/genomics_project/get_kmer_fasta/
+vim get_kmer_fasta.slurm
+"""
+#!/bin/bash
+
+#SBATCH -J genomics
+#SBATCH -p big_memory
+#SBATCH --exclude=n036,n007
+#SBATCH -c 1
+
+# setup SCRDIR
+SCRDIR=/scr/${SLURM_JOB_ID}
+mkdir /scr/${SLURM_JOB_ID}
+cd $SCRDIR
+
+save_dir=~/genomics_project/get_kmer_fasta/run1/
+
+rsync -av ~/genomics_project/fasta.gz ~/genomics_project/get_kmer_fasta.3.py ~/genomics_project/strain.list ${SCRDIR}/
+
+pip3 install biopython
+
+time ./get_kmer_fasta.3.py --in_file=./fasta.gz/GCF_003666465.1_ASM366646v1_genomic.fna.gz --out_dir=./15955/ --k=16 --n_permute=1 > 15955.log
+
+# while IFS=$'\t' read -r -a line
+# do
+# echo "${line[1]}"
+# time ./get_kmer_fasta.2.py --in_file=${SCRDIR}/fasta.gz/${line[0]} --out_dir=${SCRDIR}/${line[1]}/ --k=16 --n_permute=1 > ${SCRDIR}/${line[1]}.log
+# mv ${line[1]} ${line[1]}.log $save_dir
+# done < strain.list
+
+
+# this line will mv txt files back on any exit condition
+trap "mv * $save_dir ; rm -r *" EXIT
+
+# echo information
+echo $SLURM_SUBMIT_DIR
+echo $SLURMD_NODENAME
+echo $SLURM_JOB_ID
+"""
+
+cd ~/genomics_project/get_kmer_fasta/
+sbatch get_kmer_fasta.slurm
+
+
+
+
+
+
+# modify script to plot scatter
+"""
+#!/bin/bash
+
+#SBATCH -J genomics
+#SBATCH -p big_memory
+#SBATCH -w n201
+#SBATCH -c 1
+
+# setup SCRDIR
+SCRDIR=/scr/${SLURM_JOB_ID}
+mkdir /scr/${SLURM_JOB_ID}
+cd $SCRDIR
+
+save_dir=~/genomics_project/get_kmer_fasta/run1/
+
+rsync -av ~/genomics_project/fasta.gz ~/genomics_project/get_kmer_fasta.5.py ~/genomics_project/strain.list ${SCRDIR}/
+
+module load anaconda
+
+time ./get_kmer_fasta.5.py --in_file=./fasta.gz/GCF_003666465.1_ASM366646v1_genomic.fna.gz --out_dir=./15955/ --k=16 --n_permute=1 > 15955.log
+
+# this line will mv txt files back on any exit condition
+trap "rsync -av 15955 15955.log $save_dir ;" EXIT
+
+# echo information
+echo $SLURM_SUBMIT_DIR
+echo $SLURMD_NODENAME
+echo $SLURM_JOB_ID
+"""
+
+
+
+
+ssh n202
+htop -u shc167
+
+
+
+scp -pr shc167@cluster.csb.pitt.edu:~/genomics_project/get_kmer_fasta/run1/15955/rank_abundance.png ./
+
+
+
+
+vim get_kmer_fasta.1.slurm
+#!/bin/bash
+
+#SBATCH -J genomics
+#SBATCH -p big_memory
+#SBATCH -w n201
+#SBATCH -c 1
+
+# setup SCRDIR
+SCRDIR=/scr/${SLURM_JOB_ID}
+mkdir /scr/${SLURM_JOB_ID}
+cd $SCRDIR
+
+save_dir=~/genomics_project/get_kmer_fasta/run2/
+
+rsync -av ~/genomics_project/fasta.gz ~/genomics_project/get_kmer_fasta.5.py ~/genomics_project/strain.1.list ${SCRDIR}/
+
+module load anaconda
+
+while IFS=$'\t' read -r -a line
+do
+echo "${line[1]}"
+time ./get_kmer_fasta.5.py --in_file=fasta.gz/${line[0]} --out_dir=${line[1]}/ --k=15 --n_permute=100 > ${line[1]}.log
+rsync -av ${line[1]} ${line[1]}.log $save_dir
+done < strain.1.list
+
+# this line will mv txt files back on any exit condition
+trap "rsync -av 186 1D1609 1D1108 1D1460 15955 12D1 A6 *.log $save_dir ;" EXIT
+
+# echo information
+echo $SLURM_SUBMIT_DIR
+echo $SLURMD_NODENAME
+echo $SLURM_JOB_ID
+
+
+
+
+
+
+vim get_kmer_fasta.2.slurm
+#!/bin/bash
+
+#SBATCH -J genomics
+#SBATCH -p big_memory
+#SBATCH -w n202
+#SBATCH -c 1
+
+# setup SCRDIR
+SCRDIR=/scr/${SLURM_JOB_ID}
+mkdir /scr/${SLURM_JOB_ID}
+cd $SCRDIR
+
+save_dir=~/genomics_project/get_kmer_fasta/run2/
+
+rsync -av ~/genomics_project/fasta.gz ~/genomics_project/get_kmer_fasta.5.py ~/genomics_project/strain.2.list ${SCRDIR}/
+
+module load anaconda
+
+while IFS=$'\t' read -r -a line
+do
+echo "${line[1]}"
+time ./get_kmer_fasta.5.py --in_file=fasta.gz/${line[0]} --out_dir=${line[1]}/ --k=15 --n_permute=100 > ${line[1]}.log;
+rsync -av ${line[1]} ${line[1]}.log $save_dir
+done < strain.2.list
+
+# this line will mv txt files back on any exit condition
+trap "rsync -av CFBP5499 CFBP5877 CFBP6623 CFBP7129 CFBP6624 BIMB1315G FDAARGOS_1048 6N2 *.log $save_dir ;" EXIT
+
+# echo information
+echo $SLURM_SUBMIT_DIR
+echo $SLURMD_NODENAME
+echo $SLURM_JOB_ID
