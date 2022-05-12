@@ -347,3 +347,196 @@ trap "rsync -av CFBP5499 CFBP5877 CFBP6623 CFBP7129 CFBP6624 BIMB1315G FDAARGOS_
 echo $SLURM_SUBMIT_DIR
 echo $SLURMD_NODENAME
 echo $SLURM_JOB_ID
+
+
+./get_kmer_fasta.6.py --in_file=/Users/stc/genomics_project/fasta.gz/GCF_003666465.1_ASM366646v1_genomic.fna.gz --out_dir=/Users/stc/genomics_project/run3/ --k=12 --n_permute=10 > /Users/stc/genomics_project/run3/15955.log;
+
+
+scp -pr shc167@cluster.csb.pitt.edu:/net/dali/home/mscbio/shc167/genomics_project/get_kmer_fasta/run2 ./
+
+
+
+
+
+#### 15955 #####
+cd /Users/stc/genomics_project/run2/15955
+cat kmers_*.fasta > 15955.kmers.fasta
+grep -c '>' 15955.kmers.fasta 
+419476
+
+
+# ref genome: /Users/stc/genomics_project/fasta.gz/GCF_003666465.1_ASM366646v1_genomic.fna.gz
+# kmer seqs: /Users/stc/genomics_project/run2/15955/15955.kmers.fasta
+
+
+# prepare working dir
+mkdir -p /Users/stc/genomics_project/mapping/15955/bwa
+cp /Users/stc/genomics_project/fasta.gz/GCF_003666465.1_ASM366646v1_genomic.fna.gz /Users/stc/genomics_project/mapping/15955/
+cd /Users/stc/genomics_project/mapping/15955/
+gzip -d GCF_003666465.1_ASM366646v1_genomic.fna.gz
+
+# Index the reference sequences
+
+## bwa index
+bwa index -a is /Users/stc/genomics_project/mapping/15955/GCF_003666465.1_ASM366646v1_genomic.fna
+
+
+## index reference sequence in the FASTA format
+samtools faidx /Users/stc/genomics_project/mapping/15955/GCF_003666465.1_ASM366646v1_genomic.fna
+
+# Map the kmers (reads) to the reference sequences
+bwa mem -p -k 11 -T 13 /Users/stc/genomics_project/mapping/15955/GCF_003666465.1_ASM366646v1_genomic.fna /Users/stc/genomics_project/run2/15955/15955.kmers.fasta 2> /Users/stc/genomics_project/mapping/15955/bwa/log | samtools view -Su - | samtools sort -m 30000000000 -o /Users/stc/genomics_project/mapping/15955/kmers.bam ;
+samtools index /Users/stc/genomics_project/mapping/15955/kmers.bam &
+
+samtools depth /Users/stc/genomics_project/mapping/15955/kmers.bam > /Users/stc/genomics_project/mapping/15955/15955.depth;
+
+
+awk '{FS=OFS="\t"} NR==1 {a=$2;b=$2;ID=$1;next} ($2 != b+1){print ID, a, b; a=$2;ID=$1} {b=$2} END{print ID, a, b}' /Users/stc/genomics_project/mapping/15955/15955.depth > /Users/stc/genomics_project/mapping/15955/repeat_regions.list
+
+
+mkdir /Users/stc/genomics_project/mapping
+
+awk '{FS=OFS="\t"} {$4=$3-$2+1; print $0}' 15955_repeat_regions.list | awk '$4>=100' | sort -nrk 4 > 15955_repeat_regions.fs.list
+
+python /Users/stc/genomics_project/mapping/extract_region.1.py /Users/stc/genomics_project/mapping/15955/GCF_003666465.1_ASM366646v1_genomic.fna /Users/stc/genomics_project/mapping/15955/15955_repeat_regions.fs.list /Users/stc/genomics_project/mapping/15955/15955_repeat_regions.fs.fasta
+
+
+
+
+
+
+### A6 ###
+
+
+
+
+
+#### Hierarchical Cluster Analysis
+# input: repeat comparison table
+/Users/shc167/genomics_project/repeat.tsv
+df <- read.table(file = '/Users/shc167/genomics_project/repeat.tsv', sep = '\t', header = TRUE, row.names = 1)
+
+df_scaled <- scale(df, center = TRUE, scale = TRUE)
+
+# find distance matrix 
+d <- dist(df_scaled)
+
+# apply hirarchical clustering 
+hc <- hclust(d)
+
+# plot the dendrogram
+plot(hc)
+
+
+df1 <- read.table(file = '/Users/shc167/genomics_project/repeat.1.tsv', sep = '\t', header = TRUE, row.names = 1)
+d <- dist(df1)
+hc <- hclust(d)
+plot(hc)
+
+
+
+
+df1 <- read.table(file = '/Users/shc167/genomics_project/repeat.1.tsv', sep = '\t', header = TRUE, row.names = 1)
+
+
+for ID in 12D1 15955 186 1D1108 1D1460 1D1609 6N2 A6 BIMB1315G CFBP5499 CFBP5877 CFBP6623 CFBP6624 CFBP7129 FDAARGOS_1048
+do
+awk '$5>=4' ${ID}/kmer_table.tsv > ${ID}_kmer_table.4.tsv 
+done
+
+
+df_A6 <- read.table(file = '/Users/shc167/genomics_project/run2/A6_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_12D1 <- read.table(file = '/Users/shc167/genomics_project/run2/12D1_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_15955 <- read.table(file = '/Users/shc167/genomics_project/run2/15955_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_186 <- read.table(file = '/Users/shc167/genomics_project/run2/186_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_1D1108 <- read.table(file = '/Users/shc167/genomics_project/run2/1D1108_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+
+df_1D1460 <- read.table(file = '/Users/shc167/genomics_project/run2/1D1460_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_6N2 <- read.table(file = '/Users/shc167/genomics_project/run2/6N2_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_BIMB1315G <- read.table(file = '/Users/shc167/genomics_project/run2/BIMB1315G_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_CFBP5499 <- read.table(file = '/Users/shc167/genomics_project/run2/CFBP5499_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_CFBP5877 <- read.table(file = '/Users/shc167/genomics_project/run2/CFBP5877_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+
+df_CFBP6623 <- read.table(file = '/Users/shc167/genomics_project/run2/CFBP6623_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_CFBP6624 <- read.table(file = '/Users/shc167/genomics_project/run2/CFBP6624_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_CFBP7129 <- read.table(file = '/Users/shc167/genomics_project/run2/CFBP7129_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_FDAARGOS_1048 <- read.table(file = '/Users/shc167/genomics_project/run2/FDAARGOS_1048_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+df_1D1609 <- read.table(file = '/Users/shc167/genomics_project/run2/1D1609_kmer_table.4.tsv', sep = '\t', header = TRUE, row.names = 1)
+
+G1_A6 <- df_A6$corrected
+G1_1D1108 <- df_1D1108$corrected
+G1_FDAARGOS_1048 <- df_FDAARGOS_1048$corrected
+G1_15955 <- df_15955$corrected
+
+G3_CFBP6623 <- df_CFBP6623$corrected
+G3_CFBP6624 <- df_CFBP6624$corrected
+
+G7_1D1609 <- df_1D1609$corrected
+G7_CFBP7129 <- df_CFBP7129$corrected
+
+G6_CFBP5499 <- df_CFBP5499$corrected
+G6_CFBP5877 <- df_CFBP5877$corrected
+
+G4_6N2 <- df_6N2$corrected
+G4_186 <- df_186$corrected
+G4_12D1 <- df_12D1$corrected
+G4_1D1460 <- df_1D1460$corrected
+G4_BIMB1315G <- df_BIMB1315G$corrected
+
+
+
+
+
+
+
+vioplot(G1_1D1108, G1_FDAARGOS_1048, G1_A6, G3_CFBP6623, G3_CFBP6624, G7_1D1609, G7_CFBP7129, G6_CFBP5499, G6_CFBP5877, G4_6N2, G4_186, G4_12D1, G4_1D1460, G4_BIMB1315G)
+
+myColors <- c(brewer.pal(5, "Blues")[2:5], brewer.pal(3, "Greens")[2:3], brewer.pal(3, "PuRd")[2:3], brewer.pal(3, "Greys")[2:3], brewer.pal(6, "YlOrBr")[2:6])
+
+vioplot(G1_1D1108, G1_FDAARGOS_1048, G1_15955, G1_A6, G3_CFBP6623, G3_CFBP6624, G7_1D1609, G7_CFBP7129, G6_CFBP5499, G6_CFBP5877, G4_6N2, G4_186, G4_12D1, G4_1D1460, G4_BIMB1315G, names=c("1D1108", "FDAARGOS 1048", "15955", "A6", "CFBP6623", "CFBP6624", "1D1609", "CFBP7129", "CFBP5499", "CFBP5877", "6N2", "186", "12D1", "1D1460", "BIMB1315G"), col=myColors,xlab="Strains", ylab="Frequencies", main="Distribution of Kmer Frequencies")
+
+
+
+
+
+
+
+
+c("G1_1D1108", "G1_A6", "G1_FDAARGOS_1048", "G1_A6", "G3_CFBP6623", "G3_CFBP6624", "G7_1D1609", "G7_CFBP7129", "G6_CFBP5499", "G6_CFBP5877", "G4_6N2", "G4_186", "G4_12D1", "G4_1D1460", "G4_BIMB1315G")
+
+
+
+vioplot(G3_CFBP6623, G3_CFBP6624)
+
+Blues, Greens, PuRd, Greys, YlOrBr
+
+
+
+# run MSA
+R
+library(DECIPHER)
+seq <- readDNAStringSet('/Users/stc/genomics_project/kmers/test01.fasta')
+alignedDNA <- AlignSeqs(seq, processors=NULL, verbose=FALSE, gapOpening=-6)
+BrowseSeqs(alignedDNA)
+
+
+
+
+
+
+# add intergenic high copy number 132bp
+
+#### Hierarchical Cluster Analysis
+# input: repeat comparison table
+df <- read.table(file = '/Users/stc/genomics_project/repeat_compare.3.tsv', sep = '\t', header = TRUE, row.names = 1)
+
+df_scaled <- scale(df, center = TRUE, scale = TRUE)
+
+# find distance matrix 
+d <- dist(df_scaled)
+
+# apply hirarchical clustering 
+hc <- hclust(d)
+
+# plot the dendrogram
+plot(hc)
